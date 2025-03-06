@@ -1,16 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Socket Chat App</title>
-</head>
-<body>
-    <h2>Welcome to Socket Chat</h2>
+    <title>Socket.IO Chat</title>
     <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #chat {
+            max-width: 500px;
+            margin: auto;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        #input {
+            width: 80%;
+        }
+
+        #online-users {
+            font-size: 14px;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Chat Room</h2>
+    <p id="online-users"><strong>Online Users:</strong> <span id="users-list"></span></p>
+    <div id="chat">
+        <div id="messages"></div>
+        <p id="typing" style="color: gray;"></p>
+        <input id="input" type="text" placeholder="Type a message..." autocomplete="off">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
     <script>
-        let socket = io();
-        socket.on('connection', msg => console.log(msg))
+        const socket = io();
+        let nickname = prompt("Enter your nickname:");
+        socket.emit('set_nickname', nickname);
+
+        const messagesDiv = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const typingIndicator = document.getElementById('typing');
+        const usersList = document.getElementById('users-list');
+
+        function appendMessage(msg, isSender = false) {
+            const div = document.createElement('div');
+            div.style.color = isSender ? 'blue' : 'black';
+            div.textContent = msg;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+        }
+
+        function sendMessage() {
+            const message = input.value.trim();
+            if (message) {
+                appendMessage(`You: ${message}`, true); 
+                socket.emit('chat_message', message);
+                input.value = ''; 
+            }
+        }
+
+        input.addEventListener('keydown', () => {
+            socket.emit('typing');
+        });
+
+        socket.on('chat_message', (data) => {
+            appendMessage(`${data.nickname}: ${data.message}`);
+        });
+
+        socket.on('user connected', (msg) => {
+            appendMessage(msg);
+        });
+
+        socket.on('user disconnected', (msg) => {
+            appendMessage(msg, false);
+        });
+
+        socket.on('user_typing', (user) => {
+            typingIndicator.textContent = `${user} is typing...`;
+            setTimeout(() => typingIndicator.textContent = '', 2000);
+        });
+
+        socket.on('user_list', (users) => {
+            usersList.textContent = users.join(', ');
+        });
     </script>
+
 </body>
+
 </html>
